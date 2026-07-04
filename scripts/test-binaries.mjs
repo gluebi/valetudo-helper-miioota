@@ -12,9 +12,9 @@ const buildDir = path.join(rootDir, "build");
 const binaries = [
     {
         name: "valetudo-helper-miioota-mac-arm64",
-        platform: process.platform,
-        arch: process.arch,
-        exec: true
+        platform: "darwin",
+        arch: "arm64",
+        exec: process.platform === "darwin" && process.arch === "arm64"
     },
     {
         name: "valetudo-helper-miioota-amd64",
