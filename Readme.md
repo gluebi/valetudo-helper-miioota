@@ -11,9 +11,23 @@ Those being:
 
 It comes as a single binary with no additional dependencies and requires only experience with a terminal.
 
-Simply download the latest binary [from the releases section](https://github.com/Hypfer/valetudo-helper-miioota/releases)
+Simply download the latest binary [from the releases section](https://github.com/gluebi/valetudo-helper-miioota/releases)
 and execute it in a terminal/powershell window.
 
+Download the file matching your platform:
+
+- `valetudo-helper-miioota-mac-arm64` — macOS Apple Silicon (M1/M2/M3)
+- `valetudo-helper-miioota-amd64` — Linux x64
+- `valetudo-helper-miioota-armv7` — Linux ARM
+- `valetudo-helper-miioota.exe` — Windows
+
+On macOS, make the binary executable and remove the quarantine flag if Gatekeeper blocks it:
+
+```bash
+chmod +x valetudo-helper-miioota-mac-arm64
+xattr -dr com.apple.quarantine ./valetudo-helper-miioota-mac-arm64
+./valetudo-helper-miioota-mac-arm64 install-firmware <firmware.pkg>
+```
 
 
 ## Valetudo helpers
