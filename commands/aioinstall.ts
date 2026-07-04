@@ -1,18 +1,19 @@
-const Codec = require("../miio/Codec");
-const createMiioHeader = require("../miio/MiioHeader");
-const crypto = require("crypto");
-const dgram = require("dgram");
-const express = require("express");
-const fs = require("fs");
-const MiioSocket = require("../miio/MiioSocket");
-const path = require("path");
-const Tools = require("../utils/Tools");
+import crypto from "node:crypto";
+import dgram from "node:dgram";
+import fs from "node:fs";
+import path from "node:path";
+
+import express, { type Request, type Response } from "express";
+
+import Codec from "../miio/Codec.js";
+import createMiioHeader from "../miio/MiioHeader.js";
+import MiioSocket from "../miio/MiioSocket.js";
+import type { DiscoveredRobot } from "../miio/types.js";
+import Tools from "../utils/Tools.js";
 
 const HELO = Buffer.from("21310020ffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "hex");
 
-
-
-module.exports = async (filePath) => {
+export default async function aioInstall(filePath: string): Promise<void> {
     const pathToFirmwareImage = path.resolve(filePath);
     if (!fs.existsSync(pathToFirmwareImage)) {
         console.error(`ERROR: "${pathToFirmwareImage}" does not exist.`);
@@ -26,11 +27,9 @@ module.exports = async (filePath) => {
     console.log("Also, make sure that the robot is docked during the firmware update procedure.");
     console.log("If the install still fails, try turning the robot off and back on again and/or moving the laptop closer to it.\n");
 
-
-
-    const ourIP = Tools.GET_CURRENT_HOST_IPV4_ADDRESSES().filter(ip => {
+    const ourIP = Tools.GET_CURRENT_HOST_IPV4_ADDRESSES().find((ip) => {
         return ip.startsWith("192.168.8.");
-    })?.[0];
+    });
     if (!ourIP) {
         console.error("ERROR: There's no network interface with an IPv4 address in 192.168.8.0/24.");
         console.error("We're not connected to the robots Wi-Fi Access Point");
@@ -39,13 +38,12 @@ module.exports = async (filePath) => {
         process.exit(-1);
     }
 
-
-    const discoveredInstances = [];
+    const discoveredInstances: DiscoveredRobot[] = [];
     const discoverySocket = dgram.createSocket("udp4");
     discoverySocket.bind();
 
     discoverySocket.on("listening", () => {
-        discoverySocket.setBroadcast(true); //required for linux
+        discoverySocket.setBroadcast(true);
 
         console.log("Robot discovery started...");
 
@@ -58,11 +56,10 @@ module.exports = async (filePath) => {
         setTimeout(() => {
             discoverySocket.send(HELO, MiioSocket.PORT, "192.168.8.255");
         }, 3000);
-
     });
 
     discoverySocket.on("message", (incomingMsg, rinfo) => {
-        const codec = new Codec({token: Buffer.from("ffffffffffffffffffffffffffffffff")});
+        const codec = new Codec({ token: Buffer.from("ffffffffffffffffffffffffffffffff") });
         let decoded;
 
         try {
@@ -70,27 +67,25 @@ module.exports = async (filePath) => {
         } catch (e) {
             console.error("Error while decoding discovery response", {
                 err: e,
-                rinfo: rinfo,
-                incomingMsg: incomingMsg
+                rinfo,
+                incomingMsg
             });
 
             return;
         }
 
-        if (!discoveredInstances.find(i => {
+        if (!discoveredInstances.find((i) => {
             return i.deviceId === decoded.deviceId;
         })) {
             discoveredInstances.push({
                 deviceId: decoded.deviceId,
-                token: decoded.token,
+                token: decoded.token ?? Buffer.alloc(16),
                 address: rinfo.address
             });
-
-            //console.log(`Discovered ${discoveredInstances.length} robots...`);
         }
     });
 
-    await new Promise((resolve) => {
+    await new Promise<void>((resolve) => {
         setTimeout(() => {
             resolve();
         }, 5000);
@@ -105,48 +100,40 @@ module.exports = async (filePath) => {
             console.error("ERROR: Discovered token is invalid. Please factory-reset the robot first");
 
             console.log("Exiting..");
-
             process.exit(-1);
         }
 
         console.log(`Successfully discovered robot at ${instance.address}`);
 
-
         console.log("Reading firmware image..");
 
         const firmwareFile = fs.readFileSync(filePath);
 
-        if (firmwareFile[0] === 0x1F && firmwareFile[1] === 0x8B) { //GZIP magic bytes
+        if (firmwareFile[0] === 0x1F && firmwareFile[1] === 0x8B) {
             console.error("ERROR: Invalid firmware image. Make sure to use a .pkg file.");
 
             console.log("Exiting..");
-
             process.exit(-1);
         }
-
 
         const md5 = crypto.createHash("md5").update(firmwareFile).digest("hex");
 
         console.log(`Successfully read firmware image. Size: ${Tools.CONVERT_BYTES_TO_HUMANS(firmwareFile.length)} MD5Sum: ${md5}`);
 
-
-
         const socket = dgram.createSocket("udp4");
         socket.bind();
 
         const miioSock = new MiioSocket({
-            socket: socket,
+            socket,
             token: instance.token,
             deviceId: instance.deviceId,
-            rinfo: {address: instance.address, port: MiioSocket.PORT},
+            rinfo: { address: instance.address, port: MiioSocket.PORT, family: "IPv4", size: 0 },
             timeout: 5000,
             name: "local",
             isCloudSocket: false
         });
 
-
-        // Handshake before sending any command
-        let handshakeDone = false;
+        let handshakeDone: boolean = false;
 
         miioSock.onEmptyPacket = () => {
             handshakeDone = true;
@@ -157,11 +144,11 @@ module.exports = async (filePath) => {
 
         let i = 0;
         while (i <= 30) {
-            if (handshakeDone === true) {
+            if (handshakeDone) {
                 break;
             }
 
-            await new Promise(resolve => {
+            await new Promise<void>((resolve) => {
                 setTimeout(() => {
                     resolve();
                 }, 100);
@@ -170,28 +157,24 @@ module.exports = async (filePath) => {
             i++;
         }
 
-        if (handshakeDone !== true) {
+        if (!handshakeDone) {
             console.error("ERROR: Failed to successfully handshake with the robot.");
 
             console.log("\n\nExiting..");
-
             process.exit(-1);
         }
-
-
 
         const expressApp = express();
         let downloadStarted = false;
 
-        let downloadTimeout = setTimeout(() => {
+        const downloadTimeout = setTimeout(() => {
             console.error("ERROR: Did not receive a firmware download request after 30s");
 
             console.log("\n\nExiting..");
-
             process.exit(-1);
         }, 30000);
 
-        expressApp.get("/firmware", (req, res) => {
+        expressApp.get("/firmware", (req: Request, res: Response) => {
             console.log(`Received firmware download request from ${req.ip}..`);
 
             downloadStarted = true;
@@ -200,26 +183,25 @@ module.exports = async (filePath) => {
             res.send(firmwareFile);
         });
 
-
-
-
-        let downloadUrl;
+        let downloadUrl: string;
         const server = expressApp.listen(0, () => {
-            downloadUrl = `http://${ourIP}:${server.address().port}/firmware`;
+            const address = server.address();
+            const port = typeof address === "object" && address !== null ? address.port : 0;
+            downloadUrl = `http://${ourIP}:${port}/firmware`;
 
             console.log("");
             console.log(`Listing for firmware download requests on ${downloadUrl}`);
 
-            (async () => {
+            void (async () => {
                 try {
                     const res = await miioSock.sendMessage({
-                        "method": "miIO.ota",
-                        "params": {
-                            "mode":"normal",
-                            "install":"1",
-                            "app_url": downloadUrl,
-                            "file_md5": md5,
-                            "proc":"dnld install"
+                        method: "miIO.ota",
+                        params: {
+                            mode: "normal",
+                            install: "1",
+                            app_url: downloadUrl,
+                            file_md5: md5,
+                            proc: "dnld install"
                         }
                     });
 
@@ -229,7 +211,6 @@ module.exports = async (filePath) => {
                     console.error(e);
 
                     console.log("\n\nExiting..");
-
                     process.exit(-1);
                 }
             })();
@@ -237,7 +218,7 @@ module.exports = async (filePath) => {
 
         setInterval(() => {
             if (downloadStarted === true) {
-                server.getConnections((err, count) => {
+                server.getConnections((err: NodeJS.ErrnoException | null, count: number) => {
                     if (!err && count === 0) {
                         console.log("");
                         console.log("Download seems to have finished.");
@@ -246,27 +227,21 @@ module.exports = async (filePath) => {
                         console.log("\n\tIf you like this application, you may want to consider donating:");
                         console.log("\thttps://github.com/sponsors/Hypfer");
 
-
                         console.log("Exiting..");
-
                         process.exit(0);
                     }
                 });
             }
         }, 1000);
-
-
     } else if (discoveredInstances.length > 1) {
         console.error("ERROR: Found more than one robot. WTF");
 
         console.log("Exiting..");
-
         process.exit(-1);
     } else {
         console.error("ERROR: No robot found");
 
         console.log("Exiting..");
-
         process.exit(-1);
     }
-};
+}

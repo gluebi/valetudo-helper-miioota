@@ -1,12 +1,6 @@
-/**
- * @param {object} options
- * @param {number=} options.timestamp
- * @param {number=} options.deviceId
- * @param {number=} options.payloadLength
- * @param {number=} options.unknown
- * @returns {Buffer}
- */
-function createMiioHeader(options = {}) {
+import type { MiioHeaderOptions } from "./types.js";
+
+export default function createMiioHeader(options: MiioHeaderOptions = {}): Buffer {
     const headerLength = 32;
     const header = Buffer.alloc(headerLength, 0xff);
     header[0] = 0x21;
@@ -17,5 +11,3 @@ function createMiioHeader(options = {}) {
     header.writeUInt32BE(options.timestamp !== undefined ? options.timestamp : 0xffffffff, 12);
     return header;
 }
-
-module.exports = createMiioHeader;

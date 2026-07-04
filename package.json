@@ -1,24 +1,32 @@
 {
   "name": "valetudo-helper-miioota",
   "version": "2022.08.0",
-  "description": "",
-  "main": "app.js",
-  "bin": "app.js",
+  "description": "CLI tool to install firmwares via miio local OTA",
+  "type": "module",
+  "main": "dist/app.js",
+  "bin": "dist/app.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "start": "node app.js",
-    "install-firmware": "node app.js install-firmware v11_2034.pkg",
-
+    "compile": "tsc",
+    "start": "node dist/app.js",
+    "install-firmware": "node dist/app.js install-firmware v11_2034.pkg",
     "lint": "eslint .",
     "lint_fix": "eslint . --fix",
-
-    "build": "npm run build_win && npm run build_lin_amd64 && npm run build_lin_armv7 && npm run build_mac_arm64",
-    "build_win": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node16-win-x64 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-miioota.exe",
-    "build_lin_amd64": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node16-linuxstatic-x64 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-miioota-amd64",
-    "build_lin_armv7": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node16-linuxstatic-armv7 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-miioota-armv7",
-    "build_mac_arm64": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node16-macos-arm64 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-miioota-mac-arm64"
-
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:binaries": "node scripts/test-binaries.mjs",
+    "build": "npm run compile && npm run build_win && npm run build_lin_amd64 && npm run build_lin_armv7 && npm run build_mac_arm64",
+    "build_win": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg -c package.json --targets node24-win-x64 --compress Brotli --no-bytecode --public --public-packages \"*\" dist/app.js --output ./build/valetudo-helper-miioota.exe",
+    "build_lin_amd64": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg -c package.json --targets node24-linuxstatic-x64 --compress Brotli --no-bytecode --public --public-packages \"*\" dist/app.js --output ./build/valetudo-helper-miioota-amd64",
+    "build_lin_armv7": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg -c package.json --targets node22-linuxstatic-armv7 --compress Brotli --no-bytecode --public --public-packages \"*\" dist/app.js --output ./build/valetudo-helper-miioota-armv7",
+    "build_mac_arm64": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg -c package.json --targets node24-macos-arm64 --compress Brotli --no-bytecode --public --public-packages \"*\" dist/app.js --output ./build/valetudo-helper-miioota-mac-arm64"
   },
   "pkg": {
+    "scripts": [
+      "dist/**/*.js"
+    ],
     "assets": [
       "./.git/HEAD",
       "./.git/refs/heads/master",
@@ -28,21 +36,23 @@
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    "broadcast-address": "^1.0.2",
-    "commander": "^9.1.0",
-    "express": "^4.17.3",
-    "semaphore": "^1.1.0"
+    "commander": "^15.0.0",
+    "express": "^5.0.0"
   },
   "devDependencies": {
-    "cross-env": "7.0.3",
-    "pkg": "5.6.0",
-    "eslint": "7.32.0",
-    "eslint-plugin-react": "7.27.1",
-    "eslint-plugin-react-hooks": "4.3.0",
-    "eslint-plugin-jsdoc": "37.0.3",
-    "eslint-plugin-node": "11.1.0",
-    "eslint-plugin-regexp": "1.5.1",
-    "eslint-plugin-sort-keys-fix": "^1.1.1",
-    "eslint-plugin-sort-requires": "git+https://npm@github.com/Hypfer/eslint-plugin-sort-requires.git#2.1.1"
+    "@eslint/js": "^9.39.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.0.0",
+    "@yao-pkg/pkg": "^6.20.0",
+    "cross-env": "^10.0.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-n": "^17.0.0",
+    "eslint-plugin-regexp": "^3.0.0",
+    "eslint-plugin-simple-import-sort": "^12.0.0",
+    "eslint-plugin-sort-keys-fix": "^1.1.2",
+    "globals": "^16.0.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^3.2.0"
   }
 }

@@ -1,2 +1,5 @@
 /build_dependencies/
 /build/
+/dist/
+/node_modules/
+/.vscode/
