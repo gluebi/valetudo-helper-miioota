@@ -1,6 +1,6 @@
 {
   "name": "valetudo-helper-miioota",
-  "version": "2022.08.0",
+  "version": "2026.07.0",
   "description": "CLI tool to install firmwares via miio local OTA",
   "type": "module",
   "main": "dist/app.js",
